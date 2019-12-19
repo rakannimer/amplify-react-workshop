@@ -1,0 +1,14 @@
+type Album @model @auth(rules: [{ allow: owner }]) {
+  id: ID!
+  name: String!
+  createdAt: String!
+  photos: [Photo] @connection(name: "AlbumPhotos")
+}
+
+type Photo @model @auth(rules: [{ allow: owner }]) {
+  id: ID!
+  album: Album @connection(name: "AlbumPhotos")
+  bucket: String!
+  name: String!
+  createdAt: String!
+}
