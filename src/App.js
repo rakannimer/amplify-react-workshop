@@ -2,6 +2,12 @@ import React from "react";
 import { Grid, Header, Input, List, Segment } from "semantic-ui-react";
 import { BrowserRouter as Router, Route, NavLink } from "react-router-dom";
 import sortBy from "lodash/sortBy";
+import { withAuthenticator } from "aws-amplify-react";
+import { createPhoto } from "./graphql/mutations";
+import API, { graphqlOperation } from "@aws-amplify/api";
+import Amplify from "aws-amplify";
+import awsconfig from "./aws-exports";
+Amplify.configure(awsconfig);
 
 const NewAlbum = () => {
   const [albumName, setAlbumName] = React.useState("");
@@ -97,4 +103,4 @@ const App = () => {
   );
 };
 
-export default App;
+export default withAuthenticator(App);
