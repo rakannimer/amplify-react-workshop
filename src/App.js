@@ -1,16 +1,88 @@
 import React from "react";
-import { Grid, Header, Input, List, Segment } from "semantic-ui-react";
+import {
+  Grid,
+  Header,
+  Input,
+  List,
+  Segment,
+  Form,
+  Divider
+} from "semantic-ui-react";
 import { BrowserRouter as Router, Route, NavLink } from "react-router-dom";
 import sortBy from "lodash/sortBy";
-import { withAuthenticator } from "aws-amplify-react";
-import { createAlbum } from "./graphql/mutations";
+import { withAuthenticator, S3Image } from "aws-amplify-react";
+import { createAlbum, createPhoto } from "./graphql/mutations";
 import { onCreateAlbum } from "./graphql/subscriptions";
 import { listAlbums, getAlbum } from "./graphql/queries";
 import API, { graphqlOperation } from "@aws-amplify/api";
-import Amplify, { Auth } from "aws-amplify";
+import Amplify, { Auth, Storage } from "aws-amplify";
+import { v4 as uuid } from "uuid";
 
 import awsconfig from "./aws-exports";
+
 Amplify.configure(awsconfig);
+
+const uploadFile = async (event, albumId) => {
+  const {
+    target: { value, files }
+  } = event;
+  const fileForUpload = files[0];
+  const file = fileForUpload || value;
+  const extension = file.name.split(".")[1];
+  const { type: mimeType } = file;
+  const key = `images/${uuid()}${albumId}.${extension}`;
+  try {
+    await Storage.put(key, file, {
+      contentType: mimeType
+    });
+    console.log("successfully uploaded image!");
+  } catch (err) {
+    console.log("error: ", err);
+  }
+  await API.graphql(
+    graphqlOperation(createPhoto, {
+      input: {
+        bucket: awsconfig.aws_user_files_s3_bucket,
+        name: key,
+        createdAt: `${Date.now()}`,
+        photoAlbumId: albumId
+      }
+    })
+  );
+};
+
+const S3ImageUpload = ({ albumId }) => {
+  const [isUploading, setIsUploading] = React.useState(false);
+  const onChange = async event => {
+    setIsUploading(true);
+
+    let files = [];
+    for (var i = 0; i < event.target.files.length; i++) {
+      files.push(event.target.files.item(i));
+    }
+    await Promise.all(files.map(f => uploadFile(event, albumId)));
+
+    setIsUploading(false);
+  };
+  return (
+    <div>
+      <Form.Button
+        onClick={() => document.getElementById("add-image-file-input").click()}
+        disabled={isUploading}
+        icon="file image outline"
+        content={isUploading ? "Uploading..." : "Add Images"}
+      />
+      <input
+        id="add-image-file-input"
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={onChange}
+        style={{ display: "none" }}
+      />
+    </div>
+  );
+};
 
 const NewAlbum = () => {
   const [albumName, setAlbumName] = React.useState("");
@@ -82,8 +154,8 @@ const AlbumDetails = ({ album }) => {
   return (
     <Segment>
       <Header as="h3">{album.name}</Header>
-      <p>TODO: Allow photo uploads</p>
-      <p>TODO: Show photos for this album</p>
+      <S3ImageUpload albumId={album.id} />
+      <PhotosList photos={album.photos} />
     </Segment>
   );
 };
@@ -109,6 +181,28 @@ const AlbumsListLoader = () => {
   }, []);
   if (isLoading) return null;
   return <AlbumsList albums={albums} />;
+};
+
+const PhotosList = ({ photos }) => {
+  return (
+    <div>
+      <Divider hidden />
+      {photos &&
+        photos.items &&
+        photos.items.map(photo => (
+          <S3Image
+            theme={{
+              photoImg: {
+                width: 100
+              }
+            }}
+            key={photo.name}
+            imgKey={photo.name}
+            style={{ display: "inline-block" }}
+          />
+        ))}
+    </div>
+  );
 };
 
 const App = () => {
