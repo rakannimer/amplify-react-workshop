@@ -3,16 +3,27 @@ import { Grid, Header, Input, List, Segment } from "semantic-ui-react";
 import { BrowserRouter as Router, Route, NavLink } from "react-router-dom";
 import sortBy from "lodash/sortBy";
 import { withAuthenticator } from "aws-amplify-react";
-import { createPhoto } from "./graphql/mutations";
+import { createAlbum } from "./graphql/mutations";
+import { onCreateAlbum } from "./graphql/subscriptions";
+import { listAlbums, getAlbum } from "./graphql/queries";
 import API, { graphqlOperation } from "@aws-amplify/api";
-import Amplify from "aws-amplify";
+import Amplify, { Auth } from "aws-amplify";
+
 import awsconfig from "./aws-exports";
 Amplify.configure(awsconfig);
 
 const NewAlbum = () => {
   const [albumName, setAlbumName] = React.useState("");
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     console.log(`Creating album ${albumName} `);
+    await API.graphql(
+      graphqlOperation(createAlbum, {
+        input: {
+          name: albumName,
+          createdAt: `${Date.now()}`
+        }
+      })
+    );
     setAlbumName("");
   };
   const handleChange = event => {
@@ -50,8 +61,17 @@ const AlbumsList = ({ albums = [] }) => {
   );
 };
 const AlbumDetailsLoader = ({ id }) => {
-  const [isLoading] = React.useState(true);
-  const [album] = React.useState({});
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [album, setAlbum] = React.useState({});
+
+  React.useEffect(() => {
+    setIsLoading(true);
+    API.graphql(graphqlOperation(getAlbum, { id })).then(albumDetails => {
+      setIsLoading(false);
+      setAlbum(albumDetails.data.getAlbum);
+    });
+  }, [id]);
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -69,8 +89,24 @@ const AlbumDetails = ({ album }) => {
 };
 
 const AlbumsListLoader = () => {
-  const [isLoading] = React.useState(true);
-  const [albums] = React.useState([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [albums, setAlbums] = React.useState([]);
+  React.useEffect(() => {
+    setIsLoading(true);
+    API.graphql(graphqlOperation(listAlbums)).then(albs => {
+      setAlbums(albs.data.listAlbums.items);
+      setIsLoading(false);
+    });
+
+    Auth.currentAuthenticatedUser().then(user => {
+      API.graphql(
+        graphqlOperation(onCreateAlbum, { owner: user.username })
+      ).subscribe(newAlbum => {
+        const albumRecord = newAlbum.value.data.onCreateAlbum;
+        setAlbums(albs => [...albs, albumRecord]);
+      });
+    });
+  }, []);
   if (isLoading) return null;
   return <AlbumsList albums={albums} />;
 };
