@@ -12,6 +12,7 @@ export const onCreateAlbum = `subscription OnCreateAlbum($owner: String!) {
         bucket
         name
         createdAt
+        labels
         owner
       }
       nextToken
@@ -31,6 +32,7 @@ export const onUpdateAlbum = `subscription OnUpdateAlbum($owner: String!) {
         bucket
         name
         createdAt
+        labels
         owner
       }
       nextToken
@@ -50,6 +52,7 @@ export const onDeleteAlbum = `subscription OnDeleteAlbum($owner: String!) {
         bucket
         name
         createdAt
+        labels
         owner
       }
       nextToken
@@ -73,6 +76,7 @@ export const onCreatePhoto = `subscription OnCreatePhoto($owner: String!) {
     bucket
     name
     createdAt
+    labels
     owner
   }
 }
@@ -92,6 +96,7 @@ export const onUpdatePhoto = `subscription OnUpdatePhoto($owner: String!) {
     bucket
     name
     createdAt
+    labels
     owner
   }
 }
@@ -111,6 +116,7 @@ export const onDeletePhoto = `subscription OnDeletePhoto($owner: String!) {
     bucket
     name
     createdAt
+    labels
     owner
   }
 }

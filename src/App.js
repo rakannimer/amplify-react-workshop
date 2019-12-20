@@ -6,14 +6,15 @@ import {
   List,
   Segment,
   Form,
-  Divider
+  Divider,
+  HeaderSubheader
 } from "semantic-ui-react";
 import { BrowserRouter as Router, Route, NavLink } from "react-router-dom";
 import sortBy from "lodash/sortBy";
 import { withAuthenticator, S3Image } from "aws-amplify-react";
 import { createAlbum, createPhoto } from "./graphql/mutations";
 import { onCreateAlbum, onCreatePhoto } from "./graphql/subscriptions";
-import { listAlbums, getAlbum } from "./graphql/queries";
+import { listAlbums, getAlbum, convertImageToText } from "./graphql/queries";
 import API, { graphqlOperation } from "@aws-amplify/api";
 import Amplify, { Auth, Storage } from "aws-amplify";
 import { v4 as uuid } from "uuid";
@@ -31,8 +32,9 @@ const uploadFile = async (event, albumId, username) => {
   const extension = file.name.split(".")[1];
   const { type: mimeType } = file;
   const key = `images/${uuid()}${albumId}.${extension}`;
+  let s3Obj;
   try {
-    await Storage.put(key, file, {
+    s3Obj = await Storage.put(key, file, {
       contentType: mimeType,
       metadata: {
         owner: username,
@@ -42,14 +44,29 @@ const uploadFile = async (event, albumId, username) => {
     console.log("successfully uploaded image!");
   } catch (err) {
     console.log("error: ", err);
+    return;
   }
+  const s3ImageKey = s3Obj.key;
+  const predictionResult = await API.graphql(
+    graphqlOperation(convertImageToText, {
+      input: {
+        identifyLabels: {
+          key: s3ImageKey
+        }
+      }
+    })
+  );
+  const imageLabels = predictionResult.data.convertImageToText;
+  console.warn({ imageLabels });
+
   await API.graphql(
     graphqlOperation(createPhoto, {
       input: {
         bucket: awsconfig.aws_user_files_s3_bucket,
         name: key,
         createdAt: `${Date.now()}`,
-        photoAlbumId: albumId
+        photoAlbumId: albumId,
+        labels: imageLabels
       }
     })
   );
@@ -215,16 +232,19 @@ const PhotosList = ({ photos }) => {
       {photos &&
         photos.items &&
         photos.items.map(photo => (
-          <S3Image
-            theme={{
-              photoImg: {
-                width: 100
-              }
-            }}
-            key={photo.name}
-            imgKey={photo.name}
-            style={{ display: "inline-block" }}
-          />
+          <div style={{ display: "inline-block", padding: 20 }}>
+            <S3Image
+              theme={{
+                photoImg: {
+                  width: 100
+                }
+              }}
+              key={photo.name}
+              imgKey={photo.name}
+              style={{ display: "flex", justifyContent: "center" }}
+            />
+            Label : {photo.labels && photo.labels.join(" ")}
+          </div>
         ))}
     </div>
   );

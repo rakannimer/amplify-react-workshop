@@ -11,4 +11,9 @@ type Photo @model @auth(rules: [{ allow: owner }]) {
   bucket: String!
   name: String!
   createdAt: String!
+  labels: [String]
+}
+
+type Query {
+  convertImageToText: String @predictions(actions: [identifyLabels])
 }

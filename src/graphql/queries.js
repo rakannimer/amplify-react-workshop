@@ -12,6 +12,7 @@ export const getAlbum = `query GetAlbum($id: ID!) {
         bucket
         name
         createdAt
+        labels
         owner
       }
       nextToken
@@ -54,6 +55,7 @@ export const getPhoto = `query GetPhoto($id: ID!) {
     bucket
     name
     createdAt
+    labels
     owner
   }
 }
@@ -75,9 +77,14 @@ export const listPhotos = `query ListPhotos(
       bucket
       name
       createdAt
+      labels
       owner
     }
     nextToken
   }
+}
+`;
+export const convertImageToText = `query ConvertImageToText($input: ConvertImageToTextInput!) {
+  convertImageToText(input: $input)
 }
 `;

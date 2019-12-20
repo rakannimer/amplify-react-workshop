@@ -15,6 +15,7 @@ export const createAlbum = `mutation CreateAlbum(
         bucket
         name
         createdAt
+        labels
         owner
       }
       nextToken
@@ -37,6 +38,7 @@ export const updateAlbum = `mutation UpdateAlbum(
         bucket
         name
         createdAt
+        labels
         owner
       }
       nextToken
@@ -59,6 +61,7 @@ export const deleteAlbum = `mutation DeleteAlbum(
         bucket
         name
         createdAt
+        labels
         owner
       }
       nextToken
@@ -85,6 +88,7 @@ export const createPhoto = `mutation CreatePhoto(
     bucket
     name
     createdAt
+    labels
     owner
   }
 }
@@ -107,6 +111,7 @@ export const updatePhoto = `mutation UpdatePhoto(
     bucket
     name
     createdAt
+    labels
     owner
   }
 }
@@ -129,6 +134,7 @@ export const deletePhoto = `mutation DeletePhoto(
     bucket
     name
     createdAt
+    labels
     owner
   }
 }
