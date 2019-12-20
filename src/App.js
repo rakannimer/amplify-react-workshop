@@ -12,7 +12,7 @@ import { BrowserRouter as Router, Route, NavLink } from "react-router-dom";
 import sortBy from "lodash/sortBy";
 import { withAuthenticator, S3Image } from "aws-amplify-react";
 import { createAlbum, createPhoto } from "./graphql/mutations";
-import { onCreateAlbum } from "./graphql/subscriptions";
+import { onCreateAlbum, onCreatePhoto } from "./graphql/subscriptions";
 import { listAlbums, getAlbum } from "./graphql/queries";
 import API, { graphqlOperation } from "@aws-amplify/api";
 import Amplify, { Auth, Storage } from "aws-amplify";
@@ -22,7 +22,7 @@ import awsconfig from "./aws-exports";
 
 Amplify.configure(awsconfig);
 
-const uploadFile = async (event, albumId) => {
+const uploadFile = async (event, albumId, username) => {
   const {
     target: { value, files }
   } = event;
@@ -33,7 +33,11 @@ const uploadFile = async (event, albumId) => {
   const key = `images/${uuid()}${albumId}.${extension}`;
   try {
     await Storage.put(key, file, {
-      contentType: mimeType
+      contentType: mimeType,
+      metadata: {
+        owner: username,
+        albumId
+      }
     });
     console.log("successfully uploaded image!");
   } catch (err) {
@@ -52,6 +56,7 @@ const uploadFile = async (event, albumId) => {
 };
 
 const S3ImageUpload = ({ albumId }) => {
+  const { username } = React.useContext(UserContext);
   const [isUploading, setIsUploading] = React.useState(false);
   const onChange = async event => {
     setIsUploading(true);
@@ -60,7 +65,7 @@ const S3ImageUpload = ({ albumId }) => {
     for (var i = 0; i < event.target.files.length; i++) {
       files.push(event.target.files.item(i));
     }
-    await Promise.all(files.map(f => uploadFile(event, albumId)));
+    await Promise.all(files.map(f => uploadFile(event, albumId, username)));
 
     setIsUploading(false);
   };
@@ -133,16 +138,31 @@ const AlbumsList = ({ albums = [] }) => {
   );
 };
 const AlbumDetailsLoader = ({ id }) => {
+  const { username } = React.useContext(UserContext);
   const [isLoading, setIsLoading] = React.useState(false);
   const [album, setAlbum] = React.useState({});
 
   React.useEffect(() => {
+    let isMounted = true;
     setIsLoading(true);
     API.graphql(graphqlOperation(getAlbum, { id })).then(albumDetails => {
+      if (!isMounted) return;
       setIsLoading(false);
       setAlbum(albumDetails.data.getAlbum);
     });
-  }, [id]);
+    const sub = API.graphql(
+      graphqlOperation(onCreatePhoto, { owner: username })
+    ).subscribe(photo => {
+      const newPhoto = photo.value.data.onCreatePhoto;
+      setAlbum(alb => {
+        return { ...alb, photos: { items: [newPhoto, ...alb.photos.items] } };
+      });
+    });
+    return () => {
+      sub.unsubscribe();
+      isMounted = false;
+    };
+  }, [id, username]);
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -163,22 +183,27 @@ const AlbumDetails = ({ album }) => {
 const AlbumsListLoader = () => {
   const [isLoading, setIsLoading] = React.useState(true);
   const [albums, setAlbums] = React.useState([]);
+  const { username } = React.useContext(UserContext);
   React.useEffect(() => {
+    let isMounted = true;
+    if (!username) return;
     setIsLoading(true);
     API.graphql(graphqlOperation(listAlbums)).then(albs => {
+      if (!isMounted) return;
       setAlbums(albs.data.listAlbums.items);
       setIsLoading(false);
     });
-
-    Auth.currentAuthenticatedUser().then(user => {
-      API.graphql(
-        graphqlOperation(onCreateAlbum, { owner: user.username })
-      ).subscribe(newAlbum => {
-        const albumRecord = newAlbum.value.data.onCreateAlbum;
-        setAlbums(albs => [...albs, albumRecord]);
-      });
+    const sub = API.graphql(
+      graphqlOperation(onCreateAlbum, { owner: username })
+    ).subscribe(newAlbum => {
+      const albumRecord = newAlbum.value.data.onCreateAlbum;
+      setAlbums(albs => [...albs, albumRecord]);
     });
-  }, []);
+    return () => {
+      sub.unsubscribe();
+      isMounted = false;
+    };
+  }, [username]);
   if (isLoading) return null;
   return <AlbumsList albums={albums} />;
 };
@@ -205,31 +230,41 @@ const PhotosList = ({ photos }) => {
   );
 };
 
-const App = () => {
-  return (
-    <Router>
-      <Grid padded>
-        <Grid.Column>
-          <Route path="/" exact component={NewAlbum} />
-          <Route path="/" exact component={AlbumsListLoader} />
+const UserContext = React.createContext({ username: null });
 
-          <Route
-            path="/albums/:albumId"
-            render={() => (
-              <div>
-                <NavLink to="/">Back to Albums list</NavLink>
-              </div>
-            )}
-          />
-          <Route
-            path="/albums/:albumId"
-            render={props => (
-              <AlbumDetailsLoader id={props.match.params.albumId} />
-            )}
-          />
-        </Grid.Column>
-      </Grid>
-    </Router>
+const App = () => {
+  const [user, setUser] = React.useState({ username: null });
+  React.useEffect(() => {
+    Auth.currentAuthenticatedUser().then(user => {
+      setUser(user);
+    });
+  }, []);
+  return (
+    <UserContext.Provider value={user}>
+      <Router>
+        <Grid padded>
+          <Grid.Column>
+            <Route path="/" exact component={NewAlbum} />
+            <Route path="/" exact component={AlbumsListLoader} />
+
+            <Route
+              path="/albums/:albumId"
+              render={() => (
+                <div>
+                  <NavLink to="/">Back to Albums list</NavLink>
+                </div>
+              )}
+            />
+            <Route
+              path="/albums/:albumId"
+              render={props => (
+                <AlbumDetailsLoader id={props.match.params.albumId} />
+              )}
+            />
+          </Grid.Column>
+        </Grid>
+      </Router>
+    </UserContext.Provider>
   );
 };
 
