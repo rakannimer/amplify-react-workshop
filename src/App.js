@@ -6,8 +6,7 @@ import {
   List,
   Segment,
   Form,
-  Divider,
-  HeaderSubheader
+  Divider
 } from "semantic-ui-react";
 import { BrowserRouter as Router, Route, NavLink } from "react-router-dom";
 import sortBy from "lodash/sortBy";
@@ -20,6 +19,8 @@ import Amplify, { Auth, Storage } from "aws-amplify";
 import { v4 as uuid } from "uuid";
 
 import awsconfig from "./aws-exports";
+
+Amplify.Logger.LOG_LEVEL = "DEBUG";
 
 Amplify.configure(awsconfig);
 
@@ -167,16 +168,15 @@ const AlbumDetailsLoader = ({ id }) => {
       setIsLoading(false);
       setAlbum(albumDetails.data.getAlbum);
     });
-    const sub = API.graphql(
-      graphqlOperation(onCreatePhoto, { owner: username })
-    ).subscribe(photo => {
-      const newPhoto = photo.value.data.onCreatePhoto;
-      setAlbum(alb => {
-        return { ...alb, photos: { items: [newPhoto, ...alb.photos.items] } };
-      });
-    });
+    API.graphql(graphqlOperation(onCreatePhoto, { owner: username })).subscribe(
+      photo => {
+        const newPhoto = photo.value.data.onCreatePhoto;
+        setAlbum(alb => {
+          return { ...alb, photos: { items: [newPhoto, ...alb.photos.items] } };
+        });
+      }
+    );
     return () => {
-      sub.unsubscribe();
       isMounted = false;
     };
   }, [id, username]);
@@ -210,14 +210,13 @@ const AlbumsListLoader = () => {
       setAlbums(albs.data.listAlbums.items);
       setIsLoading(false);
     });
-    const sub = API.graphql(
-      graphqlOperation(onCreateAlbum, { owner: username })
-    ).subscribe(newAlbum => {
-      const albumRecord = newAlbum.value.data.onCreateAlbum;
-      setAlbums(albs => [...albs, albumRecord]);
-    });
+    API.graphql(graphqlOperation(onCreateAlbum, { owner: username })).subscribe(
+      newAlbum => {
+        const albumRecord = newAlbum.value.data.onCreateAlbum;
+        setAlbums(albs => [...albs, albumRecord]);
+      }
+    );
     return () => {
-      sub.unsubscribe();
       isMounted = false;
     };
   }, [username]);
@@ -232,7 +231,7 @@ const PhotosList = ({ photos }) => {
       {photos &&
         photos.items &&
         photos.items.map(photo => (
-          <div style={{ display: "inline-block", padding: 20 }}>
+          <div key={photo.id} style={{ display: "inline-block", padding: 20 }}>
             <S3Image
               theme={{
                 photoImg: {
