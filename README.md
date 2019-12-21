@@ -967,6 +967,8 @@ Now we can extract labels from uploaded images by simply running a graphQL query
 In code this looks like the following :
 
 ```jsx
+import { listAlbums, getAlbum, convertImageToText } from "./graphql/queries";
+
 const uploadFile = async (event, albumId, username) => {
   const {
     target: { value, files }
