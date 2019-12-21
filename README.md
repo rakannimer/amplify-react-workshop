@@ -676,7 +676,8 @@ const S3ImageUpload = ({ album }) => {
     for (var i = 0; i < event.target.files.length; i++) {
       files.push(event.target.files.item(i));
     }
-    await Promise.all(files.map(f => uploadFile(f, album.name)));
+    await Promise.all(files.map(f => uploadFile(event, albumId, username)));
+
     setIsUploading(false);
   };
   return (
