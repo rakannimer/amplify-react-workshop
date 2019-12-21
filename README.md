@@ -21,6 +21,7 @@
 - [Refactor : move auth to React Context](#refactor--move-auth-to-react-context)
 - [Extract labels from images using AI](#extract-labels-from-images-using-ai)
   - [Store labels in db](#store-labels-in-db)
+- [Deploy](#deploy)
 
 # Goals
 
@@ -43,6 +44,8 @@ npm install -g @aws-amplify/cli
 
 amplify configure
 ```
+
+More info on getting started [here](https://aws-amplify.github.io/docs/cli-toolchain/quickstart?sdk=js).
 
 # Setup a React app with CRA
 
@@ -1101,3 +1104,22 @@ And our final commit :
 git add --all
 git commit -m "added image labeling + labels storing and displaying"
 ```
+
+# Deploy
+
+We've built a simple single page application that can be deployed to any static file server.
+
+To stick with AWS let's use Amplify to deploy it to a share-able URL, while keeping in mind that any provider would do.
+
+```sh
+amplify hosting add
+? Select the environment setup: DEV (S3 only with HTTP)
+? hosting bucket name photoalbums-20191221083147-hostingbucket
+? index doc for the website index.html
+? error doc for the website index.html
+
+amplify publish
+
+```
+
+And this deploys our site to a unique development URL : http://photoalbums-20191221083147-hostingbucket-dev.s3-website-us-east-1.amazonaws.com/

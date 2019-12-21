@@ -243,7 +243,7 @@ const PhotosList = ({ photos }) => {
               imgKey={photo.name}
               style={{ display: "flex", justifyContent: "center" }}
             />
-            Label : {photo.labels && photo.labels.join(" ")}
+            {photo.labels && `Labels : ${photo.labels.join(" ")}`}
           </div>
         ))}
     </div>
