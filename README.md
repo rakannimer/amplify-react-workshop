@@ -667,7 +667,7 @@ const uploadFile = async (event, albumId) => {
   }
 };
 
-const S3ImageUpload = ({ album }) => {
+const S3ImageUpload = ({ albumId }) => {
   const [isUploading, setIsUploading] = React.useState(false);
   const onChange = async event => {
     setIsUploading(true);
